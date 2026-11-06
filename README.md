@@ -1,10 +1,13 @@
 # 💊 PharmaCore OS: Enterprise Pharmacy Management & Security Suite
 
-![Laravel Version](https://shields.io)
-![React Version](https://shields.io)
-![PostgreSQL](https://shields.io)
-![Runtime Environment](https://shields.io)
-![System Stability](https://shields.io)
+<p align="center">
+  <img src="https://shields.io" alt="Laravel Version" />
+  <img src="https://shields.io" alt="React Version" />
+  <img src="https://shields.io" alt="PostgreSQL" />
+  <img src="https://shields.io" alt="Runtime Environment" />
+  <img src="https://shields.io" alt="System Stability" />
+</p>
+
 
 
 PharmaCore OS is a high-performance, white-labeled, enterprise-grade Pharmacy Operations and Point-of-Sale (POS) ecosystem. It is specifically architected to run seamlessly inside a hybrid Windows 11 and Ubuntu Linux WSL2 environment. The platform automates clinical workflows, coordinates predictive multi-vendor procurements, and enforces high-security network perimeters natively out-of-the-box.
