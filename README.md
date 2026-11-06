@@ -1,58 +1,123 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 💊 PharmaCore OS: Enterprise Pharmacy Management & Security Suite
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel Version](https://shields.io)](https://laravel.com)
+[![React Version](https://shields.io)](https://react.dev)
+[![PostgreSQL](https://shields.io)](https://postgresql.org)
+[![Runtime Environment](https://shields.io)]()
+[![System Stability](https://shields.io)]()
 
-## About Laravel
+PharmaCore OS is a high-performance, white-labeled, enterprise-grade Pharmacy Operations and Point-of-Sale (POS) ecosystem. It is specifically architected to run seamlessly inside a hybrid Windows 11 and Ubuntu Linux WSL2 environment. The platform automates clinical workflows, coordinates predictive multi-vendor procurements, and enforces high-security network perimeters natively out-of-the-box.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Key System Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 🛒 High-Velocity POS Register Desk
+* **FEFO Lot Allocation:** Automated inventory checkout streams pull exclusively from the nearest expiring batch lots via strict *First-Expired, First-Out* logic.
+* **Flexible Payments:** Supports counter discount provisions and complex real-time cashier split payment matrix maps (Cash, M-Pesa reference trackers, and Credit Cards).
+* **Thermal Receipt Output:** Native integration with standard 80mm formatting templates for instant point-of-sale customer receipt generation.
 
-## Learning Laravel
+### 📦 Predictive Reordering & Intake Logistics
+* **Predictive Procurement Engine:** Automatically groups inventory threshold deficit lines and drafts supplier purchase orders without multi-row stacking conflicts.
+* **Staged Intake Queue:** Simplifies restock check-ins by auto-loading temporary auto-PO lots, directly appending liabilities to wholesaler ledgers.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 🛡️ Administrative Security & Infrastructure Telemetry
+* **Terminal IP Whitelisting:** A global middleware layer monitors incoming terminal addresses, instantly locking out unauthorized hardware.
+* **Invisible Background Operations:** Hidden execution scripts background the Laravel Artisan and React Vite engines, preventing accidental user console closures.
+* **Live System Telemetry:** Centralized dashboard charts reveal real-time disk partition volumes, WSL RAM capacities, and active PostgreSQL query threads.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## 🛠️ Technology Stack Architecture
 
-## Agentic Development
+* **Backend Framework:** Laravel 11 (PHP 8.3/8.5 optimized)
+* **Frontend View Layer:** React.js integrated with Inertia.js (Zero-API state synchronization)
+* **Database Engine:** PostgreSQL 16+ relational schema with cascaded integrity constraints
+* **Asset Compilation Pipeline:** Vite Dev Server with hot module replacement
+* **Styling Framework:** Tailwind CSS with modern UI configurations
+* **Operational Control Icons:** Lucide React suite indicators
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## 📦 Setup & Deployment Instruction Runbook
 
+### 1. Prerequisites Configuration
+Ensure your modern target computer environment has Windows 11 with WSL2 (Ubuntu Linux) turned on. Run this command chain inside your Ubuntu shell to provision core extensions:
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y php-cli php-xml php-mbstring php-pgsql php-curl php-zip unzip nodejs npm postgresql postgresql-contrib
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Database Schema Initialization
+Connect directly to your active PostgreSQL cluster instance:
+```bash
+sudo service postgresql start
+sudo -u postgres psql
+```
+Execute these configuration commands to set up your isolated schema:
+```sql
+CREATE DATABASE pharmacy_app_production;
+CREATE USER postgres_user WITH PASSWORD 'your_secure_password_here';
+GRANT ALL PRIVILEGES ON DATABASE pharmacy_app_production TO postgres_user;
+\q
+```
 
-## Contributing
+### 3. Repository Cloning & Environmental Provisioning
+Pull the codebase down from your GitHub cloud storage vault:
+```bash
+cd ~/projects
+git clone https://github.com
+cd pharmacy-app
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Sync application libraries dependencies
+composer install --no-dev --optimize-autoloader
+npm install
+npm run build
 
-## Code of Conduct
+# Configure environment settings keys
+cp .env.example .env
+```
+Open your newly created `.env` file via `nano .env`, map your `DB_DATABASE=pharmacy_app_production` and matching database user credentials, then compile your structural layouts:
+```bash
+php artisan key:generate
+php artisan migrate --force
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4. Background Server Execution
+To run the system completely invisibly without open terminal prompts on the screen, copy your `Run_Pharmacy_Invisibly.vbs` script onto the Windows Desktop and double-click it. The app will launch smoothly on your dedicated channel: `http://127.0.0.1:8080`.
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## ⚡ Automated Maintenance & Updates Workflow
 
-## License
+The repository includes a single-click deployment script (`deploy.sh`) to simplify synchronizing remote target computers when code revisions are merged into production.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+To update any live client counter station machine instantly, simply navigate to the app directory and execute the runbook script file:
+```bash
+./deploy.sh
+```
+
+---
+
+## 📂 Primary Structural Directory Map
+```text
+pharmacy-app/
+├── app/
+│   ├── Http/Controllers/       # Authoritative Transactional Controllers
+│   ├── Http/Middleware/        # Whitelist IP Security Access Guards
+│   └── Models/                 # Relational Database Eloquent Models
+├── config/                     # Core System Configuration Sheets
+├── database/
+│   ├── migrations/             # Database Relational Table Blueprints
+│   └── seeders/                # Insurance Provider Directory Seeders
+├── resources/js/
+│   ├── Layouts/                # Sidebar Component Navigation Shells
+│   └── Pages/                  # React Interface Canvas Dashboard Panels
+├── routes/
+│   └── web.php                 # Synced Application Endpoint Map Registries
+├── deploy.sh                   # Single-Click Automated Update Script
+└── README.md                   # Repository Documentation Dashboard
+```
+
+---
+
+## 📄 License & Distribution Terms
+Commercial Proprietary Source Code Framework. All exploitation, modification, and reproduction distribution rights belong strictly to **Orvella Pharmacy System Deployments**.
