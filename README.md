@@ -14,7 +14,7 @@
 <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
 </p>
 
-PharmaCore OS is a high-performance, white-labeled, enterprise-grade Pharmacy Operations and Point-of-Sale (POS) ecosystem. It is specifically architected to run seamlessly inside a hybrid Windows 11 and Ubuntu Linux WSL2 environment. The platform automates clinical workflows, coordinates predictive multi-vendor procurements, and enforces high-security network perimeters natively out-of-the-box.
+PharmaCore OS is a high-performance, white-labeled, enterprise-grade Pharmacy Operations and Point-of-Sale (POS) ecosystem. The platform automates clinical workflows, coordinates predictive multi-vendor procurements, and enforces high-security network perimeters natively out-of-the-box.
 
 ---
 
