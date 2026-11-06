@@ -1,14 +1,18 @@
 # 💊 PharmaCore OS: Enterprise Pharmacy Management & Security Suite
 
 <p align="center">
-  <img src="https://shields.io" alt="Laravel Version" />
-  <img src="https://shields.io" alt="React Version" />
-  <img src="https://shields.io" alt="PostgreSQL" />
-  <img src="https://shields.io" alt="Runtime Environment" />
-  <img src="https://shields.io" alt="System Stability" />
+<img src="https://img.shields.io/badge/Laravel-Backend-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel" />
+<img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React" />
+<img src="https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+<img src="https://img.shields.io/badge/Runtime-Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
 </p>
 
-
+<p align="center">
+<img src="https://img.shields.io/badge/Architecture-Enterprise-blue?style=flat-square" alt="Architecture" />
+<img src="https://img.shields.io/badge/Security-RBAC%20%7C%20Audit%20Logs-success?style=flat-square" alt="Security" />
+<img src="https://img.shields.io/badge/Database-PostgreSQL-blue?style=flat-square" alt="Database" />
+<img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
+</p>
 
 PharmaCore OS is a high-performance, white-labeled, enterprise-grade Pharmacy Operations and Point-of-Sale (POS) ecosystem. It is specifically architected to run seamlessly inside a hybrid Windows 11 and Ubuntu Linux WSL2 environment. The platform automates clinical workflows, coordinates predictive multi-vendor procurements, and enforces high-security network perimeters natively out-of-the-box.
 
