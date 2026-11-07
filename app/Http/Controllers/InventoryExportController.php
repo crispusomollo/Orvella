@@ -136,10 +136,10 @@ class InventoryExportController extends Controller
         return response($svgRaw, 200)->header('Content-Type', 'image/svg+xml');
     }
 
-        /**
+    /**
      * Store a newly created product formulation in the registry database.
      */
-    public function addNewProduct(Request $request)
+    /*blic function addNewProduct(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -152,7 +152,26 @@ class InventoryExportController extends Controller
         \App\Models\Product::create($validated);
 
         return response()->json(['success' => true, 'message' => 'Product formulation successfully registered.']);
+    }*/
+
+    /**
+     * Store a newly created product formulation in the registry database.
+     */
+    public function addNewProduct(Request $request)
+    {
+        $validated = $request->validate([
+            'name'                  => 'required|string|max:255',
+            'generic_name'          => 'required|string|max:255',
+            'category'              => 'required|string|in:Tablet,Syrup,Capsule,Cream,Lotion,Powder,Injectable',
+            'reorder_level'         => 'required|integer|min:1',
+            'requires_prescription' => 'required|boolean',
+        ]);
+
+        \App\Models\Product::create($validated);
+
+        return response()->json(['success' => true, 'message' => 'Product formulation successfully registered.']);
     }
+
 
     /**
      * Inject a fresh active inventory batch stock layer tracking vector.
@@ -537,11 +556,18 @@ class InventoryExportController extends Controller
      */
     public function adjustBatchStock(Request $request)
     {
-        $validated = $request->validate([
+        /*$validated = $request->validate([
             'batch_id' => 'required|exists:batches,id',
             'quantity_delta' => 'required|integer', // negative for damages/shrinkage, positive for corrections
             'type' => 'required|in:Damaged,Expired,Reconciliation,Correction',
             'reason' => 'required|string|max:255'
+        ]);*/
+
+        $validated = $request->validate([
+            'batch_id'       => 'required|integer|exists:batches,id', // Validates integer casting safely
+            'quantity_delta' => 'required|integer', 
+            'type'           => 'required|in:Damaged,Expired,Reconciliation,Correction',
+            'reason'         => 'required|string|max:255'
         ]);
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
