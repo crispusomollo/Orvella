@@ -1,0 +1,6 @@
+Medication Name,Generic Formulation,Form Category,Safety Reorder Level,Requires Rx Script
+Amoxicillin 500mg Capsules,Amoxicillin Trihydrate,Capsule,150,true
+Panadol Extra Tablets,Paracetamol + Caffeine,Tablet,300,false
+Augmentin 625mg Tablets,Amoxicillin + Clavulanic Acid,Tablet,50,true
+Benylin 4-Flu Oral Syrup,Diphenhydramine HCl,Syrup,40,false
+Xanax 0.5mg Tablets,Alprazolam,Tablet,200,true
