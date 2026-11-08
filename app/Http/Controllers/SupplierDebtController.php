@@ -141,6 +141,12 @@ class SupplierDebtController extends Controller
                 'updated_at'       => now(),
             ]);
 
+            // INJECT AUDIT TRACE LOG VECTOR
+            \App\Services\ActivityLogger::log(
+                'SUPPLIER_DEBT_SETTLEMENT',
+                "Processed payment settlement of KES " . number_format($validated['amount_paid'], 2) . " to Supplier ID #{$validated['supplier_id']} via channel [{$validated['payment_method']}] Ref: {$validated['reference_code']}."
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => "Payment of KES " . number_format($validated['amount_paid'], 2) . " safely processed against supplier account ledger under Ref: " . strtoupper($validated['reference_code'])

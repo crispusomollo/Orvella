@@ -62,7 +62,7 @@ class PatientManagementController extends Controller
     /**
      * Export streaming channel handling both CSV/Excel and clear raw formatting.
      */
-    public function exportPrescriptionsData(Request $request)
+    /*public function exportPrescriptionsData(Request $request)
     {
         $format = $request->get('format', 'excel');
         $search = $request->get('search_name');
@@ -78,7 +78,7 @@ class PatientManagementController extends Controller
         /*if ($format === 'pdf') {
             // For simple, dependency-free PDF stream under WSL, you can return a printable layout view
             return view('exports.prescriptions_pdf', compact('data'));
-        }*/
+        }*
 
                 if ($format === 'pdf') {
             // STEP B REGISTRY: LOAD PERSISTENT CORPORATE METADATA VALUES
@@ -113,6 +113,91 @@ class PatientManagementController extends Controller
         };
 
         return Response::stream($callback, 200, $headers);
+    }*/
+
+    /**
+     * Export streaming channel handling both CSV/Excel and cohesive corporate PDF layouts.
+     * Route Sourced: GET /api/prescriptions/export
+     */
+    public function exportPrescriptionsData(Request $request)
+    {
+        $format = $request->get('format', 'excel');
+        $search = $request->get('search_name');
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        
+        // Build base query eagerly loading relationships matching user criteria bounds
+        $query = Prescription::with(['patient', 'items.product']);
+        
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('prescription_number', 'ILIKE', "%{$search}%")
+                  ->orWhereHas('patient', function($pq) use ($search) {
+                      $pq->where('name', 'ILIKE', "%{$search}%");
+                  });
+            });
+        }
+        
+        if (!empty($startDate)) {
+            $query->whereDate('date_issued', '>=', $startDate);
+        }
+        
+        if (!empty($endDate)) {
+            $query->whereDate('date_issued', '<=', $endDate);
+        }
+        
+        $data = $query->orderBy('date_issued', 'desc')->get();
+
+        // Pull persistent seed configuration details from metadata registries
+        $corporateBranding = DB::table('system_settings')->where('id', 1)->first();
+        $companyName = $corporateBranding->company_name ?? 'ORVELLA PHARMACY';
+        $companyPhone = $corporateBranding->phone_number ?? '+254 700 123456';
+        $companyAddress = $corporateBranding->address ?? 'Bungoma Town CBD';
+        $companyEmail = $corporateBranding->company_email ?? 'chemists@zack.com';
+
+        // BRANCH A: Clean, browser-printable layout for PDF conversions
+        if ($format === 'pdf') {
+            return view('exports.prescriptions_pdf', compact('data', 'corporateBranding'));
+        }
+
+        // BRANCH B: High-Velocity Excel/CSV direct memory stream channel
+        $fileName = 'prescriptions_pipeline_report_' . now()->format('Ymd_His') . '.csv';
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use ($data, $companyName, $companyAddress, $companyPhone, $companyEmail) {
+            $file = fopen('php://output', 'w');
+            
+            // PREPEND DYNAMIC COHESIVE SYSTEM BANNER REPORT HEADER BLOCKS
+            fputcsv($file, [strtoupper($companyName)]);
+            fputcsv($file, ["Location: " . $companyAddress . " | Tel: " . $companyPhone . " | Email: " . $companyEmail]);
+            fputcsv($file, ["CLINICAL PRESCRIPTION DISPENSATION PIPELINE REGISTRY REPORT"]);
+            fputcsv($file, ["Exported on: " . now()->toFormattedDateString() . " " . now()->format('H:i:s')]);
+            fputcsv($file, []); // Spacer row for visual alignment
+
+            // Baseline Matrix Columns
+            fputcsv($file, ['Script Code Reference', 'Patient Name', 'Chart Number Reference', 'Prescribing Practitioner', 'Pipeline Status', 'Date Sourced']);
+
+            foreach ($data as $row) {
+                fputcsv($file, [
+                    $row->prescription_number,
+                    $row->patient ? $row->patient->name : 'Walk-In Account',
+                    $row->patient ? $row->patient->patient_number : 'N/A',
+                    $row->doctor_name,
+                    $row->status === 'Active' ? 'ACTIVE QUEUE' : 'DISPENSED',
+                    \Carbon\Carbon::parse($row->date_issued)->format('Y-m-d')
+                ]);
+            }
+            fclose($file);
+        };
+
+        return Response::stream($callback, 200, $headers);
     }
+
 }
 

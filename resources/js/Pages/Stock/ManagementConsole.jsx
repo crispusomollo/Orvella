@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import React, { useState } from 'react';
-import { Layers, Search, History, Settings, Edit3, Loader2, FileSpreadsheet, FileText, X } from 'lucide-react';
+import { Layers, Search, History, Settings, Edit3, Loader2, FileSpreadsheet, FileText, X, Printer } from 'lucide-react';
 import axios from 'axios';
 
 export default function ManagementConsole({ products, suppliers, filters }) {
@@ -22,6 +22,8 @@ export default function ManagementConsole({ products, suppliers, filters }) {
     const [newProductForm, setNewProductForm] = useState({ name: '', generic_name: '', category: 'Tablet', reorder_level: '50', requires_prescription: false });
     const [adjustmentForm, setAdjustmentForm] = useState({ batch_id: '', quantity_delta: '', type: 'Correction', reason: '' });
     const [productBatchesForModal, setProductBatchesForModal] = useState([]);
+
+    const [editProductForm, setEditProductForm] = useState({ id: '', name: '', generic_name: '', reorder_level: '' });
 
     // Stream out direct filtered data matrices straight to Excel/PDF channels
     const handleCatalogExport = (format) => {
@@ -62,7 +64,6 @@ export default function ManagementConsole({ products, suppliers, filters }) {
                 setIsBatchesLoading(false);
             });
     };
-
     const handleRegisterProductSubmit = (e) => {
         e.preventDefault();
         axios.post('/api/products/store', newProductForm)
@@ -126,9 +127,8 @@ export default function ManagementConsole({ products, suppliers, filters }) {
                         </div>
                     </div>
 
-                                        {/* TWO-COLUMN MATRIX OVERLAY WORKSPACE GRIDS */}
+                    {/* TWO-COLUMN MATRIX OVERLAY WORKSPACE GRIDS */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-                        
                         {/* LEFT COLUMN: ACTIVE DRUG CATALOG LEDGER LINES (COL-SPAN 3) */}
                         <div className="lg:col-span-3 space-y-3">
                             {products.data.length === 0 ? (
@@ -139,13 +139,21 @@ export default function ManagementConsole({ products, suppliers, filters }) {
                                     return (
                                         <div key={prod.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all">
                                             <div onClick={() => toggleBatchInspectorDrawer(prod.id)} className="p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 cursor-pointer hover:bg-slate-50/50 select-none transition-colors">
-                                                <div className="space-y-0.5 max-w-[60%]">
-                                                    <h4 className="font-bold text-slate-800 text-xs flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${parseInt(prod.stock) <= parseInt(prod.reorder_level) ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                                                        {prod.name}
-                                                    </h4>
-                                                    <p className="text-[10px] text-slate-400 font-mono truncate">SKU: {prod.sku} | Generic Name: {prod.generic_name || 'N/A'}</p>
-                                                </div>
+                                                <div className="space-y-0.5 max-w-[70%]">
+    <h4 className="font-bold text-slate-800 text-xs flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${parseInt(prod.stock) <= parseInt(prod.reorder_level) ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+        {prod.name}
+    </h4>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-400 font-medium">
+        <span className="font-mono bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded text-slate-500 font-bold">SKU: {prod.sku}</span>
+        <span className="text-slate-300 font-bold">•</span>
+        <span>Generic: <strong className="text-slate-600 font-semibold">{prod.generic_name || 'N/A'}</strong></span>
+        <span className="text-slate-300 font-bold">•</span>
+        <span className="inline-flex items-center gap-1 bg-amber-50/60 text-amber-700 border border-amber-100/40 px-1.5 py-0.5 rounded font-bold">
+            Min Alert Level: <span className="font-mono">{prod.reorder_level || '50'} Units</span>
+        </span>
+    </div>
+</div>
                                                 <div className="flex items-center gap-4 text-right sm:self-center">
                                                     <div>
                                                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Total Shelf Stock</p>
@@ -159,19 +167,61 @@ export default function ManagementConsole({ products, suppliers, filters }) {
                                                     <div className="flex flex-wrap gap-2 pb-1 border-b border-slate-200/60">
                                                         <button type="button" onClick={(e) => { e.stopPropagation(); lookupProductMovement(prod.id); }} className="inline-flex items-center gap-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg shadow-2xs uppercase tracking-wider transition-colors"><History size={12} className="text-slate-500" /> Stock Movement Logs</button>
                                                         <button 
+                                                            type="button" 
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                setProductBatchesForModal(activeBatches); 
+                                                                setAdjustmentForm({ batch_id: activeBatches[0]?.id || '', quantity_delta: '', type: 'Correction', reason: '' }); 
+                                                                setIsAdjustmentModalOpen(true); 
+                                                            }} 
+                                                            className="inline-flex items-center gap-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg shadow-2xs uppercase tracking-wider transition-colors"
+                                                        >
+                                                            <Settings size={12} className="text-slate-500" /> Batch Adjustments
+                                                        </button>
+                                                        
+<button 
     type="button" 
     onClick={(e) => { 
         e.stopPropagation(); 
-        setProductBatchesForModal(activeBatches); // Inject currently compiled lot arrays into context 
-        setAdjustmentForm({ batch_id: activeBatches[0]?.id || '', quantity_delta: '', type: 'Correction', reason: '' }); 
-        setIsAdjustmentModalOpen(true); 
+        setSelectedProductForEdit(prod);
+        setEditProductForm({
+            id: prod.id,
+            name: prod.name,
+            generic_name: prod.generic_name || '',
+            reorder_level: prod.reorder_level || ''
+        });
     }} 
-    className="inline-flex items-center gap-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg shadow-2xs uppercase tracking-wider transition-colors"
+    className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-100 hover:border-indigo-200 text-indigo-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg shadow-2xs uppercase tracking-wider transition-colors ml-auto"
 >
-    <Settings size={12} className="text-slate-500" /> Batch Adjustments
+    <Edit3 size={12} className="text-indigo-600" /> Edit Product Profile
 </button>
-                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedProductForEdit(prod); }} className="inline-flex items-center gap-1 bg-indigo-50 border border-indigo-100 hover:border-indigo-200 text-indigo-700 font-bold text-[10px] px-2.5 py-1.5 rounded-lg shadow-2xs uppercase tracking-wider transition-colors ml-auto"><Edit3 size={12} className="text-indigo-600" /> Edit Product Profile</button>
+
                                                     </div>
+
+                                                    {/* INTEGRATED HIGH-CONTRAST BARCODE STICKER CANVAS COMPONENT */}
+                                                   
+<div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-6 shadow-3xs max-w-md w-full transition-all">
+    <div className="space-y-1.5 text-center sm:text-left flex-grow">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Dynamic Shelf Barcode Label</p>
+        <h4 className="text-sm font-bold text-slate-800 leading-tight tracking-wide">{prod.name}</h4>
+        <p className="text-[11px] font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100/40 px-2 py-0.5 rounded w-max mx-auto sm:mx-0 mt-1">{prod.sku}</p>
+    </div>
+    
+    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center gap-2.5 shrink-0 shadow-2xs min-w-[150px]">
+        <img src={`/api/barcode/${prod.sku}`} alt="Product Code 128 Barcode" className="h-10 object-contain select-none px-1" />
+        <button 
+            type="button" 
+            onClick={() => {
+                const printWindow = window.open(`/api/barcode/${prod.sku}`, '_blank', 'width=400,height=300');
+                setTimeout(() => { printWindow.print(); }, 500);
+            }}
+            className="text-[10px] font-black uppercase text-indigo-600 tracking-wider hover:text-indigo-800 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+        >
+            <Printer size={11}/> Print Sticker Label
+        </button>
+    </div>
+</div>
+
                                                     <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 px-0.5"><Layers size={11} className="text-indigo-500" /> Active Component Batch Lots Breakdowns</h5>
                                                     {isBatchesLoading ? (
                                                         <div className="flex items-center justify-center py-6 text-slate-400 text-xs font-bold gap-2 font-mono"><Loader2 size={14} className="animate-spin text-indigo-500" /> Compiling live batch metrics...</div>
@@ -210,37 +260,73 @@ export default function ManagementConsole({ products, suppliers, filters }) {
 
                         {/* RIGHT MATRIX PANEL: REGISTRATION & PRODUCT PROFILE UPDATE FORMS (COL-SPAN 2) */}
                         <div className="lg:col-span-2 space-y-4 sticky top-4">
-                            {selectedProductForEdit ? (
-                                <div className="bg-white rounded-xl border border-indigo-200 shadow-md overflow-hidden flex flex-col ring-1 ring-indigo-500/5 animate-scale-up">
-                                    <div className="p-4 bg-indigo-900 text-white font-bold text-xs uppercase tracking-wider flex justify-between items-center">
-                                        <span>⚙️ Modify Formulation Profile</span>
-                                        <button type="button" onClick={() => setSelectedProductForEdit(null)} className="text-indigo-300 hover:text-white font-bold text-[10px] uppercase font-mono">Cancel</button>
-                                    </div>
-                                    <form onSubmit={(e) => {
-                                        e.preventDefault();
-                                        const formEl = e.target;
-                                        axios.post('/api/products/update', {
-                                            product_id: selectedProductForEdit.id,
-                                            name: formEl.elements.edit_name.value,
-                                            generic_name: formEl.elements.edit_generic.value,
-                                            reorder_level: parseInt(formEl.elements.edit_reorder.value)
-                                        })
-                                        .then(res => {
-                                            alert("Product layout adjustments saved cleanly.");
-                                            setSelectedProductForEdit(null);
-                                            router.reload({ preserveScroll: true });
-                                        })
-                                        .catch(err => alert("Profile update rejected."));
-                                    }} className="p-5 space-y-4 text-xs font-semibold">
-                                        <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Brand Name</label><input type="text" name="edit_name" required defaultValue={selectedProductForEdit.name} className="w-full border border-slate-200 rounded-lg text-xs p-2.5 bg-slate-50 focus:ring-1 focus:ring-indigo-500" /></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Generic Formulation</label><input type="text" name="edit_generic" required defaultValue={selectedProductForEdit.generic_name} className="w-full border border-slate-200 rounded-lg text-xs p-2.5 bg-slate-50 focus:ring-1 focus:ring-indigo-500" /></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Reorder Level Threshold</label><input type="number" name="edit_reorder" required defaultValue={selectedProductForEdit.reorder_level} className="w-full border border-slate-200 rounded-lg text-xs p-2.5 bg-slate-50 focus:ring-1 focus:ring-indigo-500 font-mono" /></div>
-                                        <button type="submit" className="w-full py-2.5 rounded-xl font-black text-xs uppercase text-white bg-indigo-600 hover:bg-indigo-700 shadow-md">Commit Profile Overwrites</button>
-                                    </form>
-                                </div>
-                            ) : (
+                            {/* PHARMACY PROFILE INTERFACES MODIFICATION CANVAS */}
+{selectedProductForEdit ? (
+    <div className="bg-white rounded-xl border border-indigo-200 shadow-md overflow-hidden flex flex-col ring-1 ring-indigo-500/5 animate-scale-up">
+        <div className="p-4 bg-indigo-900 text-white font-bold text-xs uppercase tracking-wider flex justify-between items-center">
+            <span className="tracking-wide">⚙️ Modify Formulation Profile</span>
+            <button type="button" onClick={() => setSelectedProductForEdit(null)} className="text-indigo-300 hover:text-white font-bold text-[10px] uppercase font-mono cursor-pointer">Cancel</button>
+        </div>
+        <form onSubmit={(e) => {
+            e.preventDefault();
+            axios.post('/api/products/update', {
+                product_id: editProductForm.id,
+                name: editProductForm.name,
+                generic_name: editProductForm.generic_name,
+                reorder_level: parseInt(editProductForm.reorder_level)
+            })
+            .then(res => {
+                alert("Product profile matrix parameters updated cleanly.");
+                setSelectedProductForEdit(null);
+                router.reload({ preserveScroll: true });
+            })
+            .catch(err => alert(err.response?.data?.message || "Profile adjustment rejected due to data validation errors."));
+        }} className="p-5 space-y-4 text-xs font-semibold text-slate-600">
+            
+            <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400">Brand / Commercial Name</label>
+                <input 
+                    type="text" 
+                    required 
+                    className="w-full border border-slate-200 rounded-lg text-xs p-2.5 bg-slate-50 focus:ring-1 focus:ring-indigo-500 text-slate-800 font-bold" 
+                    value={editProductForm.name} 
+                    onChange={e => setEditProductForm({...editProductForm, name: e.target.value})} 
+                />
+            </div>
+            
+            <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400">Generic Formulation Molecule</label>
+                <input 
+                    type="text" 
+                    required 
+                    className="w-full border border-slate-200 rounded-lg text-xs p-2.5 bg-slate-50 focus:ring-1 focus:ring-indigo-500 text-slate-800 font-bold" 
+                    value={editProductForm.generic_name} 
+                    onChange={e => setEditProductForm({...editProductForm, generic_name: e.target.value})} 
+                />
+            </div>
+            
+            <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400">Reorder Level Threshold</label>
+                <input 
+                    type="number" 
+                    required 
+                    className="w-full border border-slate-200 rounded-lg text-xs p-2.5 bg-slate-50 focus:ring-1 focus:ring-indigo-500 font-mono text-slate-800 font-bold" 
+                    value={editProductForm.reorder_level} 
+                    onChange={e => setEditProductForm({...editProductForm, reorder_level: e.target.value})} 
+                />
+            </div>
+            
+            <button type="submit" className="w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition-colors cursor-pointer mt-2">
+                Commit Profile Overwrites
+            </button>
+        </form>
+    </div>
+) : (
+
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                                    <div className="p-4 bg-slate-900 text-white font-bold text-xs uppercase tracking-wider">➕ Register New Medication Formulation</div>
+                                    <div className="p-4 bg-slate-900 text-white font-bold text-xs uppercase tracking-wider">
+                                        ➕ Register New Medication Formulation
+                                    </div>
                                     <form onSubmit={handleRegisterProductSubmit} className="p-5 space-y-4 text-xs font-semibold text-slate-600">
                                         
                                         {/* READ-ONLY LIVE GENERATED SKU VISUALIZER FIELD */}
@@ -334,6 +420,7 @@ export default function ManagementConsole({ products, suppliers, filters }) {
                     </div>
                 </div>
             )}
+            
             {/* BATCH ADJUSTMENT MANIFEST */}
             {isAdjustmentModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
@@ -357,27 +444,27 @@ export default function ManagementConsole({ products, suppliers, filters }) {
                         </div>
                         <div className="p-5 space-y-4 text-xs font-semibold">
                             <div className="space-y-1">
-        <label className="text-[10px] font-black uppercase text-slate-400">Target Product Batch Lot</label>
-        {productBatchesForModal.length === 0 ? (
-            <div className="w-full bg-amber-50 border border-amber-100 text-amber-800 text-[11px] p-2.5 rounded-lg font-medium">
-                Warning: No active, unexhausted component batches loaded on layout memory. Close modal and expand product first.
-            </div>
-        ) : (
-            <select 
-                required 
-                className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-xs font-mono font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                value={adjustmentForm.batch_id} 
-                onChange={e => setAdjustmentForm({...adjustmentForm, batch_id: e.target.value})}
-            >
-                <option value="">-- Choose Batch Lot Layer --</option>
-                {productBatchesForModal.map(batch => (
-                    <option key={batch.id} value={batch.id}>
-                        Lot: {batch.batch_number} (Rem: {batch.quantity_remaining} Units • Exp: {new Date(batch.expiry_date).toLocaleDateString()})
-                    </option>
-                ))}
-            </select>
-        )}
-    </div>
+                                <label className="text-[10px] font-black uppercase text-slate-400">Target Product Batch Lot</label>
+                                {productBatchesForModal.length === 0 ? (
+                                    <div className="w-full bg-amber-50 border border-amber-100 text-amber-800 text-[11px] p-2.5 rounded-lg font-medium">
+                                        Warning: No active, unexhausted component batches loaded on layout memory. Close modal and expand product first.
+                                    </div>
+                                ) : (
+                                    <select 
+                                        required 
+                                        className="w-full border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-xs font-mono font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                                        value={adjustmentForm.batch_id} 
+                                        onChange={e => setAdjustmentForm({...adjustmentForm, batch_id: e.target.value})}
+                                    >
+                                        <option value="">-- Choose Batch Lot Layer --</option>
+                                        {productBatchesForModal.map(batch => (
+                                            <option key={batch.id} value={batch.id}>
+                                                Lot: {batch.batch_number} (Rem: {batch.quantity_remaining} Units • Exp: {new Date(batch.expiry_date).toLocaleDateString()})
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black uppercase text-slate-400">Quantity Delta</label>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Batch;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -104,6 +105,12 @@ class PurchaseController extends Controller
                     'created_at'       => now(),
                     'updated_at'       => now(),
                 ]);
+
+                // INJECT AUDIT TRACE LOG VECTOR
+                \App\Services\ActivityLogger::log(
+                    'INWARD_STOCK_RECEIVED',
+                    "Received supplier inventory consignment PO [{$purchase->purchase_order_number}] adding KES " . number_format($accumulatedGrandTotal, 2) . " to accounts payable liabilities."
+                );
 
                 return $purchase;
             });
@@ -269,5 +276,156 @@ class PurchaseController extends Controller
             'items'       => $items
         ], 200);
     }
+
+    
+/**
+ * Bulk import pharmacy stock lines from an uploaded CSV spreadsheet template.
+ * Route Sourced: POST /api/purchases/import-csv
+ */
+public function importBulkStockCsv(Request $request)
+{
+    $request->validate([
+        'supplier_id' => 'required|exists:suppliers,id',
+        'delivery_date' => 'required|date',
+        'csv_file' => 'required|file|mimes:csv,txt|max:4096',
+    ]);
+
+    $file = $request->file('csv_file');
+    $path = $file->getRealPath();
+    
+    // Parse CSV rows into an array structure safely
+    $rows = array_map('str_getcsv', file($path));
+    if (count($rows) <= 1) {
+        return response()->json(['success' => false, 'message' => 'Spreadsheet validation failed: The uploaded file contains no data rows.'], 422);
+    }
+
+    // Extract headers and map to track column index offsets safely
+    $headers = array_map('trim', $rows[0]);
+    $expectedHeaders = ['Medication Name', 'Generic Formulation', 'Form Category', 'Safety Reorder Level', 'Requires Rx Script', 'Batch Number', 'Quantity Received', 'Unit Cost Price', 'Retail Sell Price', 'Expiration Date'];
+
+    // Check if any expected structural column layout header rule matches are dropped
+    foreach ($expectedHeaders as $expected) {
+        if (!in_array($expected, $headers)) {
+            return response()->json(['success' => false, 'message' => "Spreadsheet layout error: Missing required column header field named [{$expected}]."], 422);
+        }
+    }
+
+    $headerMap = array_flip($headers);
+    $importedLinesCount = 0;
+    $accumulatedGrandTotal = 0;
+
+    DB::beginTransaction();
+    try {
+        // Spin up a master purchase header order tracker reference string layout
+        $purchase = Purchase::create([
+            'supplier_id' => $request->supplier_id,
+            'purchase_order_number' => 'BULK-PO-' . strtoupper(Str::random(6)),
+            'grand_total' => 0, // Will update dynamically post calculations
+            'delivery_date' => $request->delivery_date,
+            'status' => 'Received'
+        ]);
+
+        // Loop skipped index row 0 to bypass header cell elements
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            if (count($row) < count($headers) || empty(trim($row[0]))) continue;
+
+            // Extract values via header layout index keys safely
+            $name = trim($row[$headerMap['Medication Name']]);
+            $generic = trim($row[$headerMap['Generic Formulation']]);
+            $category = trim($row[$headerMap['Form Category']]);
+            $reorderLevel = (int)$row[$headerMap['Safety Reorder Level']];
+            $requiresRx = filter_var(trim($row[$headerMap['Requires Rx Script']]), FILTER_VALIDATE_BOOLEAN);
+            
+            $batchNumber = trim($row[$headerMap['Batch Number']]);
+            $qty = (int)$row[$headerMap['Quantity Received']];
+            $costPrice = (float)$row[$headerMap['Unit Cost Price']];
+            $sellingPrice = (float)$row[$headerMap['Retail Sell Price']];
+            $expiryDate = trim($row[$headerMap['Expiration Date']]);
+
+            // 1. Dynamic Auto-Registration Component: Find or construct product baseline record row
+            // Generating standard deterministic sequential strings matching layout rules
+            $skuPrefix = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
+            while (strlen($skuPrefix) < 3) $skuPrefix .= 'X';
+            $catCode = strtoupper(substr($category, 0, 3));
+            $randomSkuSuffix = strtoupper(Str::random(4));
+            $generatedSku = "{$skuPrefix}-{$catCode}-{$randomSkuSuffix}";
+
+            $product = Product::firstOrCreate(
+                ['name' => $name],
+                [
+                    'sku' => $generatedSku,
+                    'generic_name' => $generic,
+                    'category' => in_array($category, ['Tablet','Syrup','Capsule','Cream','Lotion','Powder','Injectable']) ? $category : 'Tablet',
+                    'reorder_level' => $reorderLevel ?: 50,
+                    'requires_prescription' => $requiresRx
+                ]
+            );
+
+            // 2. Map and append multi-items lists models onto database schemas
+            PurchaseItem::create([
+                'purchase_id' => $purchase->id,
+                'product_id' => $product->id,
+                'consignment_batch_number' => $batchNumber,
+                'qty_purchased' => $qty,
+                'unit_cost' => $costPrice,
+                'suggested_retail_price' => $sellingPrice,
+                'batch_expiry_date' => $expiryDate,
+            ]);
+
+            Batch::create([
+                'product_id' => $product->id,
+                'supplier_id' => $request->supplier_id,
+                'batch_number' => $batchNumber,
+                'quantity_received' => $qty,
+                'quantity_remaining' => $qty,
+                'cost_price' => $costPrice,
+                'selling_price' => $sellingPrice,
+                'expiry_date' => $expiryDate,
+            ]);
+
+            // Attach product pivot mappings to supplier if missing
+            $product->suppliers()->syncWithoutDetaching([$request->supplier_id => ['contract_cost_price' => $costPrice]]);
+
+            $accumulatedGrandTotal += ($qty * $costPrice);
+            $importedLinesCount++;
+        }
+
+        // 3. Finalize accounting balance statements on header rows
+        $purchase->update(['grand_total' => $accumulatedGrandTotal]);
+
+        $previousBalance = DB::table('supplier_ledgers')
+            ->where('supplier_id', $request->supplier_id)
+            ->orderBy('id', 'desc')
+            ->value('running_balance') ?? 0.00;
+
+        DB::table('supplier_ledgers')->insert([
+            'supplier_id'      => $request->supplier_id,
+            'purchase_id'      => $purchase->id,
+            'transaction_type' => 'CONSIGNMENT_INTAKE',
+            'reference_number' => $purchase->purchase_order_number,
+            'debit'            => 0.00,
+            'credit'           => $accumulatedGrandTotal,
+            'running_balance'  => $previousBalance + $accumulatedGrandTotal,
+            'due_date'         => Carbon::parse($request->delivery_date)->addDays(30)->format('Y-m-d'),
+            'created_at'       => now(),
+            'updated_at'       => now(),
+        ]);
+
+        // 4. Record operation footprint in audit trail logs registers
+        \App\Services\ActivityLogger::log(
+            'BULK_INVENTORY_IMPORT',
+            "Bulk spreadsheet ingestion completed. Finalised Purchase Order: [{$purchase->purchase_order_number}] indexing {$importedLinesCount} stock items totaling KES " . number_format($accumulatedGrandTotal, 2) . "."
+        );
+
+        DB::commit();
+        return response()->json(['success' => true, 'message' => "Ecosystem stock ingestion complete: Successfully processed {$importedLinesCount} inventory lots layers under PO: {$purchase->purchase_order_number}."]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Ingestion transaction aborted: Database exception constraint triggered: ' . $e->getMessage()], 422);
+    }
+}
+
     
 }

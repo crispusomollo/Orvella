@@ -12,6 +12,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call([
+            PharmacyEcosystemSeeder::class,
+        ]);
+        
         // 1. Create a Base Application System User
         User::factory()->create([
             'name' => 'Dr. Zach Admin',
@@ -100,7 +104,7 @@ class DatabaseSeeder extends Seeder
             'expiry_date' => now()->addMonths(14),
         ]);
 
-                // --- ADD PERMANENT TEST PATIENTS REGISTER ---
+        // --- ADD PERMANENT TEST PATIENTS REGISTER ---
         $patient = \App\Models\Patient::create([
             'name' => 'John Doe',
             'patient_number' => 'PAT-9988',

@@ -1,81 +1,112 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-import React from 'react';
-import { ClipboardList, User, ShieldAlert, Key, HelpCircle } from 'lucide-react';
+import { Head, router, Link } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { ShieldCheck, Search, ShieldAlert, Terminal, User, FileText, Download } from 'lucide-react';
 
-export default function AuditTrails({ logs }) {
-    
-    // Dynamically assign badges depending on action metrics types
-    const getActionBadgeStyle = (action) => {
-        if (action.includes('CREATED')) return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-        if (action.includes('DELETED')) return 'bg-rose-50 border-rose-200 text-rose-700';
-        if (action.includes('SECURITY') || action.includes('FAILED')) return 'bg-purple-50 border-purple-200 text-purple-700 animate-pulse font-bold';
-        return 'bg-amber-50 border-amber-200 text-amber-700'; // Default Modified state
+export default function AuditLogs({ logsData, distinctTypes, filters }) {
+    const [searchTerm, setSearchQuery] = useState(filters.search || '');
+    const [selectedType, setSelectedType] = useState(filters.event_type || '');
+
+    const runLogsSearchFilter = () => {
+        router.get(route('audit.logs'), { search: searchTerm, event_type: selectedType }, { preserveState: true, preserveScroll: true });
+    };
+
+    // Compiles active variables onto raw file download channels
+    const triggerReportDownload = (formatType) => {
+        const queryParams = new URLSearchParams({
+            format: formatType,
+            search: searchTerm,
+            event_type: selectedType
+        }).toString();
+        
+        window.open(`/api/reports/audit-logs/export?${queryParams}`, '_blank');
     };
 
     return (
         <AuthenticatedLayout
-            header={<h2 className="text-xl font-bold leading-tight text-slate-800 flex items-center gap-2"><ClipboardList className="text-slate-700"/> Regulatory Security & System Audit Trails</h2>}
+            header={<h2 className="text-xl font-bold leading-tight text-slate-800 flex items-center gap-2"><ShieldCheck className="text-rose-600"/> Corporate Security Registry & Operations Audit Trails</h2>}
         >
             <Head title="System Audit Logs" />
 
-            <div className="py-6 bg-slate-100 min-h-screen">
+            <div className="py-6 bg-slate-100 min-h-screen space-y-4">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-4">
                     
+                    {/* LOGS FILTERS TOOLBAR */}
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+                        <div className="space-y-1 flex-1">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Audit Description Keyword Match</label>
+                            <input type="text" placeholder="Filter audit text logs statement strings..." className="w-full border border-slate-200 rounded-lg text-xs p-2 bg-slate-50 focus:ring-1 focus:ring-indigo-500" value={searchTerm} onChange={e => setSearchQuery(e.target.value)} />
+                        </div>
+                        <div className="space-y-1 w-full md:w-1/4">
+                            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Event Vector Group</label>
+                            <select className="w-full border border-slate-200 rounded-lg text-xs p-2 bg-slate-50 focus:ring-1 focus:ring-indigo-500" value={selectedType} onChange={e => setSelectedType(e.target.value)}>
+                                <option value="">-- All Event Vectors --</option>
+                                {distinctTypes.map((type, i) => <option key={i} value={type}>{type}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button type="button" onClick={runLogsSearchFilter} className="flex-1 md:flex-none bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl shadow-sm transition-colors">
+                                Query Trails
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* SYSTEM LOG MATRIX LEDGER SHEET */}
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <h4 className="font-bold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                <Terminal size={14} className="text-slate-400" /> Chronological Operations Log Track Ledger
+                            </h4>
+                            
+                            {/* DYNAMIC DOCUMENT REPORT DISPATCH TRIGGER SET */}
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <button type="button" onClick={() => triggerReportDownload('pdf')} className="flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors w-full sm:w-auto">
+                                    <FileText size={13}/> Export PDF
+                                </button>
+                                <button type="button" onClick={() => triggerReportDownload('excel')} className="flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-[11px] uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors w-full sm:w-auto">
+                                    <Download size={13}/> Export Excel/CSV
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse text-sm">
-                                <thead className="bg-slate-900 text-slate-200 font-bold">
+                            <table className="w-full text-left border-collapse text-xs font-semibold">
+                                <thead className="bg-slate-100 text-slate-500 font-black border-b border-slate-200 uppercase tracking-wider text-[9px]">
                                     <tr>
-                                        <th className="p-4">Timestamp</th>
-                                        <th className="p-4">Executed By</th>
-                                        <th className="p-4">Action Label</th>
-                                        <th className="p-4">Target Identity</th>
-                                        <th className="p-4">Modified Data Parameter Difference Mapping</th>
-                                        <th className="p-4">IP Sourced</th>
+                                        <th className="p-3">Logged Date / Time</th>
+                                        <th className="p-3">Event Vector Class</th>
+                                        <th className="p-3">Action Trace Audit Statement String</th>
+                                        <th className="p-3">Operator User</th>
+                                        <th className="p-3 text-right">Terminal IP Address</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white">
-                                    {logs.data.length === 0 ? (
+                                <tbody className="divide-y divide-slate-100 text-slate-600 bg-white">
+                                    {logsData.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="p-8 text-center text-slate-400">No activity trail footprints recorded inside database registers yet.</td>
+                                            <td colSpan="5" className="p-12 text-center text-slate-400 italic font-medium">
+                                                Zero security mutation log traces found matching current query bounds.
+                                            </td>
                                         </tr>
                                     ) : (
-                                        logs.data.map((log) => (
-                                            <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                                                <td className="p-4 text-xs font-mono text-slate-500 whitespace-nowrap">
+                                        logsData.data.map((log) => (
+                                            <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="p-3 font-mono text-slate-500 whitespace-nowrap">
                                                     {new Date(log.created_at).toLocaleString()}
                                                 </td>
-                                                <td className="p-4 text-slate-700 font-medium whitespace-nowrap">
-                                                    <span className="flex items-center gap-1.5">
-                                                        <User size={14} className="text-slate-400"/>
-                                                        {log.user ? log.user.name : <span className="text-slate-400 italic">Anonymous Terminal</span>}
+                                                <td className="p-3 whitespace-nowrap">
+                                                    <span className="bg-slate-100 border text-slate-700 font-mono text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wide">
+                                                        {log.event_type}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 whitespace-nowrap">
-                                                    <span className={`px-2.5 py-1 text-xs border rounded-full font-medium ${getActionBadgeStyle(log.action)}`}>
-                                                        {log.action}
-                                                    </span>
+                                                <td className="p-3 text-slate-800 font-medium max-w-sm break-words">
+                                                    {log.description}
                                                 </td>
-                                                <td className="p-4 text-xs text-slate-600 font-mono whitespace-nowrap">
-                                                    {log.auditable_type.split('\\').pop()} #{log.auditable_id}
+                                                <td className="p-3 font-bold text-slate-700 whitespace-nowrap flex items-center gap-1.5 mt-2.5">
+                                                    <User size={12} className="text-slate-400" />
+                                                    {log.operator_name || 'System Loop Worker'}
                                                 </td>
-                                                <td className="p-4 text-xs max-w-xs md:max-w-md overflow-hidden">
-                                                    {log.old_values || log.new_values ? (
-                                                        <div className="space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100 font-mono max-h-24 overflow-y-auto">
-                                                            {log.old_values && (
-                                                                <p className="text-rose-600"><span className="font-bold text-slate-400">Before:</span> {JSON.stringify(log.old_values)}</p>
-                                                            )}
-                                                            {log.new_values && (
-                                                                <p className="text-emerald-600"><span className="font-bold text-slate-400">After:</span> {JSON.stringify(log.new_values)}</p>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-slate-400 italic">No value transitions documented</span>
-                                                    )}
-                                                </td>
-                                                <td className="p-4 text-xs font-mono text-slate-500 whitespace-nowrap">
-                                                    {log.ip_address}
+                                                <td className="p-3 text-right font-mono text-slate-400 whitespace-nowrap">
+                                                    {log.ip_address || '127.0.0.1'}
                                                 </td>
                                             </tr>
                                         ))
@@ -83,21 +114,24 @@ export default function AuditTrails({ logs }) {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
 
-                    {/* INTERACTIVE PAGINATION LINK NAV BLOCK */}
-                    <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <span className="text-xs text-slate-500 font-medium font-mono">Showing entries {logs.from}-{logs.to} out of {logs.total} logs footprint points</span>
-                        <div className="flex items-center gap-1.5">
-                            {logs.links.map((link, i) => (
-                                <Link
-                                    key={i}
-                                    href={link.url || '#'}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                    className={`px-3 py-1.5 text-xs rounded-lg transition-all font-semibold border ${link.active ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'} ${!link.url ? 'text-slate-300 pointer-events-none border-slate-100' : ''}`}
-                                />
-                            ))}
-                        </div>
+                                                {/* PAGINATION LAYOUT */}
+                        {logsData.last_page > 1 && (
+                            <div className="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs font-medium text-slate-400">
+                                <span className="font-mono">Page {logsData.current_page} of {logsData.last_page}</span>
+                                <div className="flex items-center gap-1">
+                                    {logsData.links.map((link, idx) => (
+                                        <Link
+                                            key={idx}
+                                            href={link.url || '#'}
+                                            data={{ search: searchTerm, event_type: selectedType }}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                            className={`px-2 py-0.5 text-xs rounded border transition-all font-semibold ${link.active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'} ${!link.url ? 'text-slate-300 pointer-events-none border-slate-100' : ''}`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                 </div>
@@ -105,4 +139,3 @@ export default function AuditTrails({ logs }) {
         </AuthenticatedLayout>
     );
 }
-

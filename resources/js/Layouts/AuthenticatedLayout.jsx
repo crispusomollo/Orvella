@@ -97,13 +97,15 @@ export default function AuthenticatedLayout({ header, children }) {
             roles: ['admin'],
             links: [
                 { name: 'Corporate Layout Settings', route: 'admin.settings_index', icon: Settings },
+                { name: 'Bulk Data Migration Hub', route: 'admin.migration_hub', icon: Database },
+                { name: 'Security Audit Trails', route: 'audit.logs', icon: ClipboardList },
                 { name: 'User Management Console', route: 'admin.users_index', icon: UserCheck },
                 { name: 'Infrastructure Telemetry', route: 'admin.system_health', icon: Activity },
                 { name: 'Disaster Recovery Vault', route: 'admin.backups_index', icon: Database },
                 { name: 'System Maintenance Desk', route: 'admin.maintenance_index', icon: Cpu },
                 { name: 'Terminal IP Security Desk', route: 'admin.terminal_security', icon: ShieldAlert },
                 { name: 'Database Session Overlord', route: 'admin.process_killer', icon: ShieldAlert },
-                { name: 'Security Audit Trails', route: 'audit.logs', icon: ClipboardList }
+                
             ]
         }
     ];

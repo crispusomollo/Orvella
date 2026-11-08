@@ -10,6 +10,7 @@ use App\Http\Controllers\InventoryExportController;
 use App\Http\Controllers\SupplierDebtController;
 use App\Http\Controllers\ReportingController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\DataMigrationHubController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -47,7 +48,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/inventory/export', [InventoryExportController::class, 'generateInventoryMarkdownReport'])->name('reports.inventory.export');
 
     // Audit trails UI web page display path
+    //Route::get('/audit-logs', [ReportingController::class, 'getAuditLogs'])->name('audit.logs');
     Route::get('/audit-logs', [ReportingController::class, 'getAuditLogs'])->name('audit.logs');
+    Route::get('/api/reports/audit-logs/export', [ReportingController::class, 'exportAuditLogs'])->name('audit.logs.export');
 
     Route::get('/api/barcode/{sku}', [InventoryExportController::class, 'streamProductBarcode'])->name('barcode.stream');
 
@@ -116,6 +119,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // ADMINISTRATIVE IDENTITY DESK GROUP
         Route::get('/admin/users', [App\Http\Controllers\ReportingController::class, 'getUserManagementConsole'])->name('admin.users_index');
         Route::post('/api/admin/users/store', [App\Http\Controllers\ReportingController::class, 'registerSystemOperatorUser'])->name('admin.users_store');
+        Route::post('/api/admin/users/update', [App\Http\Controllers\ReportingController::class, 'updateSystemOperatorUser'])->name('admin.users_update');
         Route::post('/api/admin/users/{id}/toggle-status', [App\Http\Controllers\ReportingController::class, 'toggleOperatorAccessStatus'])->name('admin.users_toggle');
 
         // ADMINISTRATIVE TELEMETRY DESK GROUP
@@ -159,7 +163,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // ADMINISTRATIVE BATCH EXPIRY PROACTIVE FORECASTING GROUP
         Route::get('/admin/expiry-alerts', [App\Http\Controllers\ReportingController::class, 'getBatchExpiryProactiveConsoleIndex'])->name('admin.expiry_alerts');
 
-        Route::get('/audit-logs', [ReportingController::class, 'getAuditLogs'])->name('audit.logs');
+        //Route::get('/audit-logs', [ReportingController::class, 'getAuditLogs'])->name('audit.logs');
         Route::get('/supplier-debt', function () {
             $summary = app(SupplierDebtController::class)->getAgingAnalysisSummary()->getData();
             return Inertia::render('Reports/SupplierDebt', ['initialLedger' => $summary]);
@@ -328,6 +332,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // --- FORM BACKEND STORAGE ENDPOINT CONNECTION ---
     Route::post('/api/purchases/receive', [\App\Http\Controllers\PurchaseController::class, 'receiveSupplierStock']);
+    Route::post('/api/purchases/import-csv', [App\Http\Controllers\PurchaseController::class, 'importBulkStockCsv'])->name('purchases.import_csv');
+
 
     // --- EXECUTIVE PROFIT & LOSS STATEMENT WORKSPACE ROUTE ---
     //Route::get('/financial-reporting', function () {
@@ -358,6 +364,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/low-stock-reorder', [App\Http\Controllers\PharmacyDashboardController::class, 'showLowStockReorderConsole'])->name('stock.reorder_console');
     Route::post('/api/purchases/auto-draft-po', [App\Http\Controllers\PurchaseController::class, 'autoDraftSupplierPurchaseOrder'])->name('api.auto_draft_po');
 
+    // Web view route to render the bulk administration control panel
+    Route::get('/admin/migration-hub', [DataMigrationHubController::class, 'index'])->name('admin.migration_hub');
+    
+    // Unified endpoint routing multi-part upload forms via type discriminators
+    Route::post('/api/admin/migration/import', [DataMigrationHubController::class, 'executeImport'])->name('admin.migration_import');
 
 });
 

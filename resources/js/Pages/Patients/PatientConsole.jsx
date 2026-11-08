@@ -110,6 +110,7 @@ export default function PatientConsole({ patients, products, latestPrescriptions
         
         window.location.href = `/api/prescriptions/export?${queryParams}`;
     };
+    
     return (
         <AuthenticatedLayout
             header={<h2 className="text-xl font-bold leading-tight text-slate-800 flex items-center gap-2"><Users className="text-indigo-600"/> Patient Care Registry & Clinical Script Queue</h2>}
@@ -303,7 +304,7 @@ export default function PatientConsole({ patients, products, latestPrescriptions
             <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Prescription Ref Code</label>
             <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide">Auto-Fill</span>
         </div>
-        <input type="text" placeholder="Leave blank for auto RX code..." className="w-full border border-slate-200 rounded-lg text-xs p-2.5 focus:ring-1 focus:ring-indigo-500 font-mono bg-slate-50/50" value={scriptData.prescription_number} onChange={e => setScriptData('prescription_number', e.target.value)} />
+        <input type="text" readonly="true" placeholder="Leave blank for auto RX code..." className="w-full border border-slate-200 rounded-lg text-xs p-2.5 focus:ring-1 focus:ring-indigo-500 font-mono bg-slate-50/50" value={scriptData.prescription_number} onChange={e => setScriptData('prescription_number', e.target.value)} />
     </div>
     <div className="space-y-1">
         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Prescribing Doctor</label>
@@ -326,39 +327,67 @@ export default function PatientConsole({ patients, products, latestPrescriptions
                                         </div>
 
                                         {/* MULTI-ITEM DRUG MATRIX LOG CONTAINER */}
-                                        <div className="border-t border-slate-200/60 pt-3 space-y-3">
-                                            <div className="flex justify-between items-center px-0.5">
-                                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Authorized Formulations Array</label>
-                                                <button type="button" onClick={addNewMedicationLine} className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800"><Plus size={12}/> Add Drug Row</button>
-                                            </div>
+<div className="border-t border-slate-200/60 pt-3 space-y-3">
+    <div className="flex justify-between items-center px-0.5">
+        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Authorized Formulations Array</label>
+        <button type="button" onClick={addNewMedicationLine} className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-600 hover:text-indigo-800"><Plus size={12}/> Add Drug Row</button>
+    </div>
 
-                                                                                        <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-                                                {scriptData.medications.map((med, idx) => (
-                                                    <div key={idx} className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-200 space-y-2 relative">
-                                                        {scriptData.medications.length > 1 && (
-                                                            <button type="button" onClick={() => removeMedicationLine(idx)} className="absolute top-2 right-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={13}/></button>
-                                                        )}
-                                                        <div className="grid grid-cols-3 gap-2">
-                                                            <div className="col-span-2 space-y-0.5">
-                                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Medication</label>
-                                                                <select required className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white" value={med.product_id} onChange={e => updateMedicationCell(idx, 'product_id', e.target.value)}>
-                                                                    <option value="">-- Choose Drug --</option>
-                                                                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                                                </select>
-                                                            </div>
-                                                            <div className="space-y-0.5">
-                                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Qty</label>
-                                                                <input type="number" required placeholder="30" className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white font-mono" value={med.quantity_ordered} onChange={e => updateMedicationCell(idx, 'quantity_ordered', e.target.value)} />
-                                                            </div>
-                                                        </div>
-                                                        <div className="space-y-0.5">
-                                                            <label className="text-[9px] font-bold text-slate-400 uppercase">Clinical Dosage Instructions (Sig)</label>
-                                                            <input type="text" required placeholder="e.g., 1 tab x3 daily for 5 days" className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white" value={med.dosage_instructions} onChange={e => updateMedicationCell(idx, 'dosage_instructions', e.target.value)} />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+    <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+        {scriptData.medications.map((med, idx) => (
+            <div key={idx} className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-200 space-y-2 relative">
+                {scriptData.medications.length > 1 && (
+                    <button type="button" onClick={() => removeMedicationLine(idx)} className="absolute top-2 right-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={13}/></button>
+                )}
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2 space-y-0.5">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase">Medication</label>
+                        <select required className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white" value={med.product_id} onChange={e => updateMedicationCell(idx, 'product_id', e.target.value)}>
+                            <option value="">-- Choose Drug --</option>
+                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="space-y-0.5">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase">Qty</label>
+                        <input type="number" required placeholder="30" className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white font-mono" value={med.quantity_ordered} onChange={e => updateMedicationCell(idx, 'quantity_ordered', e.target.value)} />
+                    </div>
+                </div>
+                
+                {/* UPGRADED SMART DOSAGE INTERFACE LAYER */}
+                <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-slate-400 uppercase block">Clinical Dosage Instructions (Sig)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <select 
+                            className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white sm:col-span-1"
+                            value={['1 tab x3 daily for 5 days', '1 tab x2 daily for 7 days', '1 cap daily at night', 'Apply locally x2 daily', '5ml x3 daily for 7 days'].includes(med.dosage_instructions) ? med.dosage_instructions : 'Custom'}
+                            onChange={e => {
+                                if(e.target.value !== 'Custom') {
+                                    updateMedicationCell(idx, 'dosage_instructions', e.target.value);
+                                }
+                            }}
+                        >
+                            <option value="1 tab x3 daily for 5 days">TID (3x Daily - 5 days)</option>
+                            <option value="1 tab x2 daily for 7 days">BID (2x Daily - 7 days)</option>
+                            <option value="1 cap daily at night">OD (Nightly - 1 Daily)</option>
+                            <option value="5ml x3 daily for 7 days">Syrup TID (3x Daily)</option>
+                            <option value="Apply locally x2 daily">Topical (Twice Daily)</option>
+                            <option value="Custom">-- Custom Entry String --</option>
+                        </select>
+                        <input 
+                            type="text" 
+                            required 
+                            placeholder="Type custom instructions if not listed above..." 
+                            className="w-full border border-slate-200 rounded-md text-xs p-1.5 bg-white sm:col-span-2 font-medium" 
+                            value={med.dosage_instructions} 
+                            onChange={e => updateMedicationCell(idx, 'dosage_instructions', e.target.value)} 
+                        />
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+</div>
+
 
                                         <button type="submit" disabled={isUploading} className="w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 transition-colors shadow-md flex justify-center items-center gap-2">
                                             {isUploading ? "Uploading Document..." : "Queue Multi-Script to Billing"}

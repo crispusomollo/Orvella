@@ -510,6 +510,13 @@ class PosController extends Controller
 
         $sale->load(['items.product']);
 
+        // INJECT AUDIT TRACE LOG VECTOR
+        \App\Services\ActivityLogger::log(
+            'POS_SALE_COMPLETED',
+            "Completed sales invoice [{$sale->invoice_number}] totaling KES " . number_format($sale->total_amount, 2) . " via payment channel [{$sale->payment_method}]."
+        );
+
+
         return response()->json([
             'success' => true,
             'message' => 'Invoice finalized and split metrics balanced successfully.',
@@ -624,6 +631,12 @@ class PosController extends Controller
                 'status' => 'Reconciled'
             ]);
     });
+
+    // INJECT AUDIT TRACE LOG VECTOR
+            \App\Services\ActivityLogger::log(
+                'SHIFT_RECONCILIATION',
+                "Closed active retail session shift registry. Status: RECONCILED. Drawer Cash Expected: KES " . number_format($validated['expected_cash'], 2) . " | Counted: KES " . number_format($validated['actual_cash'], 2)
+            );
 
         return response()->json([
             'success' => true, 

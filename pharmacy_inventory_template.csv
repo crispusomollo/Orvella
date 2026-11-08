@@ -1,0 +1,6 @@
+Medication Name,Generic Formulation,Form Category,Safety Reorder Level,Requires Rx Script,Batch Number,Quantity Received,Unit Cost Price,Retail Sell Price,Expiration Date
+Amoxicillin 500mg Caps,Amoxicillin,Capsule,100,true,AMX2026_01,500,8.50,15.00,2027-12-31
+Paracetamol 500mg Tabs,Paracetamol,Tablet,200,false,PRC2026_09,2000,1.20,5.00,2028-06-30
+Augmentin 625mg Tabs,Amoxicillin + Clavulanic Acid,Tablet,50,true,AUG_B42,120,45.00,75.00,2027-08-15
+Benylin 4-Flu Syrup,Diphenhydramine,Syrup,30,false,BEN_99X,80,180.00,280.00,2027-03-20
+

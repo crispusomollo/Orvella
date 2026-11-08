@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use App\Models\Expense;
+use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Response;
 use Carbon\Carbon;
 use Inertia\Inertia;
 
@@ -106,7 +109,7 @@ class ReportingController extends Controller
     /**
      * Extract paginated system audit trails with user relationships for the UI layout.
      */
-    public function getAuditLogs(Request $request) // Updated parameter map to handle filters safely
+    /*public function getAuditLogs(Request $request) // Updated parameter map to handle filters safely
     {
         // Retrieve historical logs sorted by newest entries first, including worker info
         $logs = \App\Models\AuditLog::with('user:id,name')
@@ -116,7 +119,7 @@ class ReportingController extends Controller
         return Inertia::render('Reports/AuditTrails', [
             'logs' => $logs
         ]);
-    }
+    }*/
 
 
     /**
@@ -1247,6 +1250,161 @@ public function revokeTerminalAuthorizationLock($id)
 
     return response()->json(['success' => true, 'message' => 'Terminal authorization parameters revoked and cleared from registry.']);
 }
+
+
+    /**
+     * Overwrite an active operator's profile details and password properties.
+     * Route Sourced: POST /api/admin/users/update
+     */
+    public function updateSystemOperatorUser(Request $request)
+    {
+        // Enforce strict administrator authorization guard limits
+        if (auth()->user()->role !== 'admin') {
+            abort(403, 'Unauthorized Operation Clearance Level.');
+        }
+
+        $validated = $request->validate([
+            'id'       => 'required|integer|exists:users,id',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|email|max:255|unique:users,email,' . $request->id,
+            'role'     => 'required|in:admin,pharmacist,cashier',
+            'password' => 'nullable|string|min:8' // Password remains optional during normal profile corrections
+        ]);
+
+        $updatePayload = [
+            'name' => trim($validated['name']),
+            'email' => strtolower(trim($validated['email'])),
+            'role' => $validated['role'],
+            'updated_at' => now()
+        ];
+
+        // If a fresh string sequence is typed inside the credential box, re-hash it cleanly
+        if (!empty($validated['password'])) {
+            $updatePayload['password'] = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        }
+
+        \Illuminate\Support\Facades\DB::table('users')
+            ->where('id', $validated['id'])
+            ->update($updatePayload);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Identity baseline changes committed safely for operational node [{$validated['name']}]."
+        ]);
+    }
+
+    /**
+ * Extract filtered system audit trails with user relationships for the UI layout.
+ * Route Sourced: GET /admin/audit-logs
+ */
+public function getAuditLogs(Request $request)
+{
+    $search = $request->get('search');
+    $eventType = $request->get('event_type');
+
+    // Build standard base filtering pipeline mapping your frontend properties
+    $query = DB::table('activity_logs')
+        ->leftJoin('users', 'activity_logs.user_id', '=', 'users.id')
+        ->select(
+            'activity_logs.*',
+            'users.name as operator_name'
+        );
+
+    if (!empty($search)) {
+        $query->where('activity_logs.description', 'ILIKE', "%{$search}%");
+    }
+
+    if (!empty($eventType)) {
+        $query->where('activity_logs.event_type', $eventType);
+    }
+
+    // Pull unique event classifications to hydrate the filter dropdown dynamically
+    $distinctTypes = DB::table('activity_logs')
+        ->distinct()
+        ->whereNotNull('event_type')
+        ->pluck('event_type');
+
+    $logs = $query->orderBy('activity_logs.created_at', 'desc')->paginate(15)->withQueryString();
+
+    return Inertia::render('Reports/AuditTrails', [
+        'logsData'      => $logs,
+        'distinctTypes' => $distinctTypes,
+        'filters'       => $request->only(['search', 'event_type'])
+    ]);
+}
+
+/**
+ * Route Sourced: GET /api/reports/audit-logs/export
+ */
+public function exportAuditLogs(Request $request)
+{
+    $format = $request->get('format', 'excel');
+    $search = $request->get('search');
+    $eventType = $request->get('event_type');
+
+    $query = DB::table('activity_logs')
+        ->leftJoin('users', 'activity_logs.user_id', '=', 'users.id')
+        ->select('activity_logs.*', 'users.name as operator_name');
+
+    if (!empty($search)) {
+        $query->where('activity_logs.description', 'ILIKE', "%{$search}%");
+    }
+    if (!empty($eventType)) {
+        $query->where('activity_logs.event_type', $eventType);
+    }
+
+    $data = $query->orderBy('activity_logs.created_at', 'desc')->get();
+    
+    // Pull corporate layout details
+    $corporateBranding = DB::table('system_settings')->where('id', 1)->first();
+    $companyName = $corporateBranding->company_name ?? 'ORVELLA PHARMACY';
+    $companyPhone = $corporateBranding->phone_number ?? '+254 700 123456';
+    $companyAddress = $corporateBranding->address ?? 'Bungoma Town CBD';
+    $companyEmail = $corporateBranding->company_email ?? 'chemists@orvella.com';
+
+    // BRANCH A: Clean, browser-printable window layout for PDF conversion
+    if ($format === 'pdf') {
+        return view('exports.audit_logs_pdf', compact('data', 'corporateBranding'));
+    }
+
+    // BRANCH B: High-Velocity Excel/CSV stream mapping the explicit table schema layout
+    $fileName = 'security_audit_trails_' . now()->format('Ymd_His') . '.csv';
+    $headers = [
+        "Content-type"        => "text/csv",
+        "Content-Disposition" => "attachment; filename=$fileName",
+        "Pragma"              => "no-cache",
+        "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+        "Expires"             => "0"
+    ];
+
+    $callback = function() use ($data, $companyName, $companyAddress, $companyPhone, $companyEmail) {
+        $file = fopen('php://output', 'w');
+        
+        // PREPEND CORPORATE LAYOUT SETTINGS INFORMATION BLOCK Header
+        fputcsv($file, [strtoupper($companyName)]);
+        fputcsv($file, ["Location: " . $companyAddress . " | Tel: " . $companyPhone . " | Email: " . $companyEmail]);
+        fputcsv($file, ["REGULATORY SECURITY & SYSTEM OPERATIONS AUDIT TRAIL LOGS"]);
+        fputcsv($file, ["Exported on: " . now()->toFormattedDateString() . " " . now()->format('H:i:s')]);
+        fputcsv($file, []); // Spacer row for visual neatness
+
+        // Primary Grid Columns
+        fputcsv($file, ['Timestamp', 'Event Class Key', 'Action Trace Statement', 'Executed By', 'Terminal IP Address']);
+
+        foreach ($data as $row) {
+            fputcsv($file, [
+                Carbon::parse($row->created_at)->toIso8601String(),
+                $row->event_type,
+                $row->description,
+                $row->operator_name ?? 'System Process',
+                $row->ip_address ?? '127.0.0.1'
+            ]);
+        }
+        fclose($file);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
+
 
 
 }

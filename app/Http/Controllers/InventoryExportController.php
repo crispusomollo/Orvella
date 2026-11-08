@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Batch;
 use Illuminate\Http\Request;
+use Picqer\Barcode\BarcodeGeneratorSVG;
 
 use App\Traits\HasSystemBranding;
 use Illuminate\Support\Facades\DB;
@@ -126,7 +127,7 @@ class InventoryExportController extends Controller
     /**
      * Render a high-contrast inline SVG barcode for a specific Product SKU.
     */
-    public function streamProductBarcode($sku)
+    /*public function streamProductBarcode($sku)
     {
         $generator = new \Picqer\Barcode\BarcodeGeneratorSVG();
     
@@ -134,6 +135,25 @@ class InventoryExportController extends Controller
         $svgRaw = $generator->getBarcode($sku, $generator::TYPE_CODE_128, 2, 40);
 
         return response($svgRaw, 200)->header('Content-Type', 'image/svg+xml');
+    }*/
+
+    /**
+     * Render a high-contrast inline SVG barcode sticker layer for a specific Product SKU.
+     * Route Sourced: GET /api/barcode/{sku}
+     */
+    public function streamProductBarcode($sku)
+    {
+        // Enforce basic fallback strings if parameters are corrupted
+        $cleanSku = !empty($sku) ? trim($sku) : 'ORVELLA-PRD';
+        
+        $generator = new BarcodeGeneratorSVG();
+    
+        // Generate pure vector Code 128 barcode (Width: 2px per bar, Height: 45px)
+        $svgRaw = $generator->getBarcode($cleanSku, $generator::TYPE_CODE_128, 2, 45);
+
+        return response($svgRaw, 200)
+            ->header('Content-Type', 'image/svg+xml')
+            ->header('Cache-Control', 'max-age=604800, public'); // Cache on browser engine for velocity
     }
 
     /**
@@ -415,6 +435,12 @@ class InventoryExportController extends Controller
                 'patient_number' => $validatedData['patient_number']
             ]);
 
+            // INJECT AUDIT TRACE LOG VECTOR
+            \App\Services\ActivityLogger::log(
+                'PATIENT_ENROLLED',
+                "Enrolled new patient profile [{$patient->name}] with chart tracking sequence number: [{$patient->patient_number}]."
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => "Patient profile [{$patient->name}] enrolled successfully with System Code: {$patient->patient_number}",
@@ -427,7 +453,7 @@ class InventoryExportController extends Controller
      * Store a newly raised prescription supporting multi-item medications and auto-generated unique script codes.
      * Route Sourced: POST /api/prescriptions/store
      */
-    public function addNewPrescription(Request $request)
+    /*public function addNewPrescription(Request $request)
     {
         $request->validate([
             'patient_id' => 'required|exists:patients,id',
@@ -491,8 +517,93 @@ class InventoryExportController extends Controller
             }
         });
 
+        // INJECT AUDIT TRACE LOG VECTOR
+            \App\Services\ActivityLogger::log(
+                'PRESCRIPTION_QUEUED',
+                "Registered new clinical prescription order [{$prescriptionNumber}] for Patient ID #{$request->patient_id} issued by Practitioner: [{$request->doctor_name}]."
+            );
+
+        return redirect()->back();
+    }*/
+
+
+        /**
+     * Store a newly raised prescription supporting multi-item medications and auto-generated unique script codes.
+     * Route Sourced: POST /api/prescriptions/store
+     */
+    public function addNewPrescription(Request $request)
+    {
+        $request->validate([
+            'patient_id' => 'required|exists:patients,id',
+            'prescription_number' => 'nullable|string|max:50|unique:prescriptions,prescription_number',
+            'doctor_name' => 'required|string|max:255',
+            'date_issued' => 'required|date', 
+            'is_external' => 'required|boolean',
+            'attachment_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:4096',
+            'medications' => 'required|array|min:1',
+            'medications.*.product_id' => 'required|exists:products,id',
+            'medications.*.quantity_ordered' => 'required|integer|min:1',
+            'medications.*.dosage_instructions' => 'required|string|max:255',
+        ]);
+
+        DB::transaction(function () use ($request) {
+            $attachmentPath = null;
+            $prescriptionNumber = $request->prescription_number;
+
+            if (empty($prescriptionNumber)) {
+                $currentYear = now()->format('Y');
+                $prefix = "RX-" . $currentYear . "-";
+
+                // Scan for the max numeric suffix matching our active calendar cycle pattern
+                $latestScript = \App\Models\Prescription::where('prescription_number', 'LIKE', "{$prefix}%")
+                    ->orderBy('prescription_number', 'desc')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($latestScript) {
+                    $lastSequenceNumber = (int) substr($latestScript->prescription_number, strlen($prefix));
+                    $nextSequenceNumber = $lastSequenceNumber + 1;
+                } else {
+                    $nextSequenceNumber = 1;
+                }
+
+                $prescriptionNumber = $prefix . str_pad($nextSequenceNumber, 4, '0', STR_PAD_LEFT);
+            }
+
+            if ($request->hasFile('attachment_file') && $request->is_external) {
+                $file = $request->file('attachment_file');
+                $attachmentPath = $file->store('external_scripts', 'public');
+            }
+
+            $prescription = \App\Models\Prescription::create([
+                'patient_id' => $request->patient_id,
+                'prescription_number' => strtoupper(trim($prescriptionNumber)),
+                'doctor_name' => trim($request->doctor_name),
+                'date_issued' => $request->date_issued, 
+                'status' => 'Active', 
+                'external_attachment_path' => $attachmentPath,
+            ]);
+
+            foreach ($request->medications as $med) {
+                \App\Models\PrescriptionItem::create([
+                    'prescription_id' => $prescription->id,
+                    'product_id' => $med['product_id'],
+                    'quantity_ordered' => $med['quantity_ordered'],
+                    //'dosage_instructions' => trim($med['dosage_instructions']),
+                    'dosage_instructions' => ucfirst(trim($med['dosage_instructions'])),
+                ]);
+            }
+
+            // FIXED: Logger placed INSIDE transaction scope closure where variable is explicitly defined
+            \App\Services\ActivityLogger::log(
+                'PRESCRIPTION_QUEUED',
+                "Registered clinical prescription order [{$prescription->prescription_number}] for Patient ID #{$request->patient_id} issued by Practitioner: [{$request->doctor_name}]."
+            );
+        });
+
         return redirect()->back();
     }
+
 
 
     /**
@@ -589,6 +700,12 @@ class InventoryExportController extends Controller
                 'reason' => $validated['reason']
             ]);
         });
+
+        // INJECT AUDIT TRACE LOG VECTOR
+            \App\Services\ActivityLogger::log(
+                'STOCK_ADJUSTMENT_MUTATION',
+                "Manual inventory modification on Batch No: `{$batch->batch_number}`. Delta alteration: [{$validated['quantity_delta']}] units. Classification Type: [{$validated['type']}] Reason: {$validated['reason']}."
+            );
 
         return response()->json(['success' => true, 'message' => 'Stock parameters adjusted and logged successfully.']);
     }
@@ -876,6 +993,12 @@ class InventoryExportController extends Controller
             'reorder_level' => $validated['reorder_level'],
         ]);
 
+        // INJECT AUDIT TRACE LOG VECTOR
+        \App\Services\ActivityLogger::log(
+            'PRODUCT_PROFILE_MUTATED',
+            "Modified inventory product profile matrix parameters for [{$product->name}] (SKU: {$product->sku})."
+        );
+
         return response()->json(['success' => true, 'message' => 'Medication formulary profile updated successfully.']);
     }
 
@@ -899,6 +1022,12 @@ public function streamCatalogPdfManifest(Request $request)
 
     $products = $query->orderBy('name', 'asc')->get();
     $corporateBranding = DB::table('system_settings')->where('id', 1)->first();
+
+    // INJECT ATOMIC REPORT EXPORT LOG VECTOR
+    \App\Services\ActivityLogger::log(
+        'REPORT_GENERATION',
+        "Exported Master Medication Catalog PDF Manifest document. Search Filter Criteria: [" . ($search ?: 'None / All rows extracted') . "]."
+    );
 
     return view('exports.catalog_manifest_pdf', compact('products', 'corporateBranding'));
 }
